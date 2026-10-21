@@ -173,8 +173,10 @@ const colours = PROJECTS.map((p) => p.colour)
   .field {
     position: absolute;
     inset: 0;
-    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
-    mask-image: linear-gradient(180deg, #000 70%, transparent);
+    /* The maze lives in the open space above the name and dissolves
+       before it reaches the text. */
+    -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 78%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 78%);
   }
   .hero-inner { position: relative; width: 100%; padding-top: 120px; padding-bottom: 48px; display: grid; grid-template-columns: auto 1fr; gap: 28px 64px; align-items: end; pointer-events: none; }
   .hero-inner a { pointer-events: auto; }
@@ -188,8 +190,6 @@ const colours = PROJECTS.map((p) => p.colour)
   }
 
   .intro { max-width: 50ch; }
-  /* A soft halo of paper around the text keeps it readable over the painting. */
-  .intro p, .main-project p { text-shadow: 0 0 3px var(--paper), 0 0 8px var(--paper), 0 0 14px var(--paper); }
   .intro p { margin: 0 0 14px; }
     .links { display: flex; gap: 20px; font-weight: 500; }
 
@@ -316,6 +316,10 @@ const colours = PROJECTS.map((p) => p.colour)
   @media (max-width: 860px) {
     .hero-inner, .main-project, main, .foot { padding: 0 18px; }
     .hero { min-height: 0; }
+    .field {
+      -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 50%);
+      mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 50%);
+    }
     .hero-inner { grid-template-columns: 1fr; padding-top: 96px; padding-bottom: 32px; }
     .spectrum { height: 40px; }
     .spectrum a span { display: none; }

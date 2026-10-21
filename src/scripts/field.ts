@@ -58,11 +58,6 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
   let cssH = 0
   const wokeAt = performance.now()
 
-  // A second, offscreen canvas the snakes paint on. It fades very slowly,
-  // so over a minute or two their routes weave into a picture.
-  const paint = document.createElement('canvas')
-  const pctx = paint.getContext('2d')!
-  let paintFrames = 0
 
   // Deterministic randomness for the maze, ordinary randomness for the snakes.
   let seed = 20261021
@@ -79,9 +74,6 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
     canvas.style.width = `${w}px`
     canvas.style.height = `${h}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    paint.width = canvas.width
-    paint.height = canvas.height
-    pctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     cssW = w
     cssH = h
     ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || ink
@@ -239,19 +231,7 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
     for (const s of snakes) {
       if (now - s.plannedAt < THINK) continue
       s.at += (s.speed * dt) / 1000
-      const before = s.trail[s.trail.length - 1]
-      const headNow = head(s)
-      s.trail.push(headNow)
-      if (before) {
-        pctx.globalAlpha = 0.09
-        pctx.strokeStyle = s.colour
-        pctx.lineWidth = 9
-        pctx.lineCap = 'round'
-        pctx.beginPath()
-        pctx.moveTo(before[0], before[1])
-        pctx.lineTo(headNow[0], headNow[1])
-        pctx.stroke()
-      }
+      s.trail.push(head(s))
       if (s.trail.length > TRAIL_POINTS) s.trail.shift()
       if (s.at >= s.route.length - 1) {
         const [x, y] = centre(s.route[s.route.length - 1])
@@ -261,23 +241,12 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
     }
     rings = rings.filter((r) => now - r.born < 1400)
 
-    // Fade the painting a notch about once a second.
-    if (++paintFrames % 60 === 0) {
-      pctx.save()
-      pctx.setTransform(1, 0, 0, 1, 0, 0)
-      pctx.globalCompositeOperation = 'destination-out'
-      pctx.globalAlpha = 0.1
-      pctx.fillRect(0, 0, paint.width, paint.height)
-      pctx.restore()
-    }
   }
 
   // ── drawing ───────────────────────────────────────────────────────────
 
   function draw(now: number): void {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.globalAlpha = 1
-    ctx.drawImage(paint, 0, 0, cssW, cssH)
 
     // Walls: faint dots, brighter in the cursor's light. On first load they
     // wake up in a wave spreading from the middle of the header.
@@ -309,25 +278,35 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
       if (!still && t < FLASH) {
         const shown = Math.min(s.explored.length, Math.floor((t / THINK) * s.explored.length))
         ctx.fillStyle = s.colour
-        ctx.globalAlpha = 0.12 * (1 - t / FLASH) * dim
+        ctx.globalAlpha = 0.35 * (1 - t / FLASH) * dim
+        ctx.beginPath()
         for (let k = 0; k < shown; k++) {
           const [x, y] = centre(s.explored[k])
-          ctx.fillRect(x - CELL / 2 + 3, y - CELL / 2 + 3, CELL - 6, CELL - 6)
+          ctx.moveTo(x + 2.5, y)
+          ctx.arc(x, y, 2.5, 0, Math.PI * 2)
         }
+        ctx.fill()
       }
 
-      // Tail: older points thinner and fainter.
+      // Tail: follows the maze's right angles, thinning and fading towards the end.
       const pts = s.trail
-      const keep = Math.min(pts.length, TRAIL_POINTS)
-      ctx.lineCap = 'round'
+      ctx.lineJoin = 'miter'
       ctx.strokeStyle = s.colour
-      for (let k = pts.length - keep + 1; k < pts.length; k++) {
-        const f = (k - (pts.length - keep)) / keep
-        ctx.globalAlpha = 0.85 * f * dim
-        ctx.lineWidth = (1 + 4 * f) * bold
+      // A few solid pieces, each a little bolder than the last: no beads
+      // where short segments would overlap.
+      const n = pts.length
+      const PIECES = 8
+      for (let p = 0; p < PIECES; p++) {
+        const a = Math.floor((p * (n - 1)) / PIECES)
+        const b = Math.floor(((p + 1) * (n - 1)) / PIECES)
+        if (b <= a) continue
+        const f = (p + 1) / PIECES
+        ctx.globalAlpha = 0.9 * f * f * dim
+        ctx.lineWidth = (0.8 + 3.2 * f) * bold
+        ctx.lineCap = p === PIECES - 1 ? 'round' : 'butt'
         ctx.beginPath()
-        ctx.moveTo(pts[k - 1][0], pts[k - 1][1])
-        ctx.lineTo(pts[k][0], pts[k][1])
+        ctx.moveTo(pts[a][0], pts[a][1])
+        for (let k = a + 1; k <= b; k++) ctx.lineTo(pts[k][0], pts[k][1])
         ctx.stroke()
       }
       const [hx, hy] = pts.length ? pts[pts.length - 1] : head(s)
