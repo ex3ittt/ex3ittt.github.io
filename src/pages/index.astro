@@ -100,7 +100,16 @@ const colours = PROJECTS.map((p) => p.colour)
       import { startField } from '../scripts/field'
 
       const canvas = document.getElementById('field') as HTMLCanvasElement
-      startField(canvas, JSON.parse(canvas.dataset.colours ?? '[]'))
+      const field = startField(canvas, JSON.parse(canvas.dataset.colours ?? '[]'))
+
+      // Hovering a project in the colour strip singles out its snake.
+      for (const band of document.querySelectorAll<HTMLElement>('.spectrum a')) {
+        const colour = band.style.getPropertyValue('--own').trim()
+        band.addEventListener('pointerenter', () => field.highlight(colour))
+        band.addEventListener('focus', () => field.highlight(colour))
+        band.addEventListener('pointerleave', () => field.highlight(null))
+        band.addEventListener('blur', () => field.highlight(null))
+      }
 
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -160,7 +169,7 @@ const colours = PROJECTS.map((p) => p.colour)
 
   /* ── hero ─────────────────────────────────────────────────────────── */
 
-  .hero { position: relative; overflow: hidden; min-height: min(88vh, 760px); display: grid; align-items: end; cursor: crosshair; }
+  .hero { position: relative; overflow: hidden; min-height: min(88vh, 760px); display: grid; align-items: end; }
   .field {
     position: absolute;
     inset: 0;

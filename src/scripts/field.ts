@@ -1,38 +1,63 @@
 /**
- * The hero background: a faint maze in which A* keeps finding its way to the
- * cursor — the same algorithm as in the pathfinding project, running live.
- * Each new route is drawn in the colour of the next project on the page.
+ * The hero background: a faint maze with one "snake" per project crawling
+ * through it. Each snake picks a random spot, finds its way there with A*
+ * (the explored cells flash briefly in its colour), crawls along the route
+ * and sends out a ring when it arrives. The cursor works as a lamp: walls
+ * near it show up a little brighter. Hovering a project in the colour strip
+ * below makes that project's snake stand out.
  *
- * It only animates while the hero is on screen and the tab is visible, and
- * with prefers-reduced-motion it draws one still route and stops.
+ * It only animates while the hero is on screen and the tab is visible; with
+ * prefers-reduced-motion it draws one still frame and stops.
  */
 
 const CELL = 22
+const TAIL = 11 // cells of tail behind the head
+/** Head positions kept per frame — about 1.6 s of movement at 60 fps. */
+const TRAIL_POINTS = 96
+const LAMP = 170 // px radius of the cursor light
 
-interface Search {
-  visited: Int32Array // cells in the order A* settled them
-  path: number[] // goal → start
-  startedAt: number
+interface Snake {
   colour: string
+  route: number[] // start → goal
+  at: number // position along the route, in cells (fractional)
+  speed: number // cells per second
+  trail: [number, number][] // recent head positions, newest last
+  explored: Int32Array
+  plannedAt: number
 }
 
-export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
+interface Ring {
+  x: number
+  y: number
+  colour: string
+  born: number
+}
+
+export interface Field {
+  highlight(colour: string | null): void
+}
+
+export function startField(canvas: HTMLCanvasElement, colours: string[]): Field {
   const ctx = canvas.getContext('2d')!
   const host = canvas.parentElement!
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
   let cols = 0
   let rows = 0
-  let open = new Uint8Array(0) // 1 = corridor
-  let start = 0
-  let goal = -1
-  let current: Search | null = null
-  let previous: Search | null = null
-  let colourIndex = 0
-  let raf = 0
-  let visible = true
-  let lastPointer = 0
+  let open = new Uint8Array(0)
+  let corridors: number[] = []
+  let snakes: Snake[] = []
+  let rings: Ring[] = []
   let ink = '#24262b'
+  let lamp: [number, number] | null = null
+  let focus: string | null = null
+  let visible = true
+  let raf = 0
+  let last = 0
+
+  // Deterministic randomness for the maze, ordinary randomness for the snakes.
+  let seed = 20261021
+  const mazeRand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 
   // ── maze ──────────────────────────────────────────────────────────────
 
@@ -50,11 +75,8 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
     cols = Math.max(9, Math.floor(w / CELL) | 1)
     rows = Math.max(9, Math.floor(h / CELL) | 1)
     open = new Uint8Array(cols * rows)
+    seed = 20261021
 
-    // Recursive backtracker on odd cells, then knock out some walls so A*
-    // has real choices to make instead of a single corridor.
-    let seed = 20261021
-    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
     const stack = [cols + 1]
     open[cols + 1] = 1
     while (stack.length) {
@@ -71,41 +93,39 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
         stack.pop()
         continue
       }
-      const n = next[Math.floor(rand() * next.length)]
+      const n = next[Math.floor(mazeRand() * next.length)]
       open[(cell + n) / 2] = 1
       open[n] = 1
       stack.push(n)
     }
+    // Knock out some walls so there are loops and A* has choices.
     for (let r = 1; r < rows - 1; r++) {
       for (let c = 1; c < cols - 1; c++) {
         const i = r * cols + c
-        if (open[i] || rand() > 0.14) continue
+        if (open[i] || mazeRand() > 0.16) continue
         if ((open[i - 1] && open[i + 1]) !== (open[i - cols] && open[i + cols])) open[i] = 1
       }
     }
-    start = nearestOpen(rows - 2, 1)
-    current = previous = null
-    goal = -1
-  }
+    corridors = []
+    for (let i = 0; i < open.length; i++) if (open[i]) corridors.push(i)
 
-  function nearestOpen(r: number, c: number): number {
-    r = Math.max(1, Math.min(rows - 2, r))
-    c = Math.max(1, Math.min(cols - 2, c))
-    for (let d = 0; d < Math.max(rows, cols); d++) {
-      for (let dr = -d; dr <= d; dr++) {
-        for (let dc = -d; dc <= d; dc++) {
-          const rr = r + dr
-          const cc = c + dc
-          if (rr > 0 && cc > 0 && rr < rows - 1 && cc < cols - 1 && open[rr * cols + cc]) return rr * cols + cc
-        }
+    const now = performance.now()
+    rings = []
+    snakes = colours.map((colour, k) => {
+      const s: Snake = { colour, route: [], at: 0, speed: 6 + Math.random() * 4, trail: [], explored: new Int32Array(0), plannedAt: now }
+      // Stagger the first plans so the snakes don't all "think" at once.
+      plan(s, corridors[Math.floor(Math.random() * corridors.length)], now - 2000 + k * 160)
+      if (still) {
+        s.at = Math.min(s.route.length - 1, TAIL + 4)
+        s.trail = s.route.slice(0, Math.floor(s.at) + 1).map(centre)
       }
-    }
-    return cols + 1
+      return s
+    })
   }
 
   // ── A* ────────────────────────────────────────────────────────────────
 
-  function astar(from: number, to: number): { visited: Int32Array; path: number[] } {
+  function astar(from: number, to: number): { route: number[]; explored: Int32Array } {
     const n = cols * rows
     const g = new Float64Array(n).fill(Infinity)
     const prev = new Int32Array(n).fill(-1)
@@ -114,19 +134,18 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
     const tr = Math.floor(to / cols)
     const tc = to % cols
     const h = (i: number) => Math.abs(Math.floor(i / cols) - tr) + Math.abs((i % cols) - tc)
-    // Binary heap of [priority, cell] packed in two arrays.
     const pri: number[] = []
     const val: number[] = []
+    const swap = (a: number, b: number) => {
+      ;[pri[a], pri[b]] = [pri[b], pri[a]]
+      ;[val[a], val[b]] = [val[b], val[a]]
+    }
     const push = (p: number, v: number) => {
-      let i = pri.length
-      pri.push(p)
+      let i = pri.push(p) - 1
       val.push(v)
-      while (i > 0) {
-        const up = (i - 1) >> 1
-        if (pri[up] <= pri[i]) break
-        ;[pri[up], pri[i]] = [pri[i], pri[up]]
-        ;[val[up], val[i]] = [val[i], val[up]]
-        i = up
+      while (i > 0 && pri[(i - 1) >> 1] > pri[i]) {
+        swap(i, (i - 1) >> 1)
+        i = (i - 1) >> 1
       }
     }
     const pop = () => {
@@ -136,16 +155,13 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
       if (pri.length) {
         pri[0] = lp
         val[0] = lv
-        let i = 0
-        for (;;) {
+        for (let i = 0; ; ) {
           const l = 2 * i + 1
-          const r = l + 1
           let m = i
           if (l < pri.length && pri[l] < pri[m]) m = l
-          if (r < pri.length && pri[r] < pri[m]) m = r
+          if (l + 1 < pri.length && pri[l + 1] < pri[m]) m = l + 1
           if (m === i) break
-          ;[pri[m], pri[i]] = [pri[i], pri[m]]
-          ;[val[m], val[i]] = [val[i], val[m]]
+          swap(i, m)
           i = m
         }
       }
@@ -166,160 +182,186 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
         if (cost >= g[next]) continue
         g[next] = cost
         prev[next] = cell
-        // Tie-break towards the goal so the search looks purposeful.
         push(cost + h(next) * 1.001, next)
       }
     }
-    const path: number[] = []
-    if (done[to]) for (let at = to; at !== -1; at = prev[at]) path.push(at)
-    return { visited: Int32Array.from(order), path }
+    const route: number[] = []
+    if (done[to]) for (let at = to; at !== -1; at = prev[at]) route.push(at)
+    return { route: route.reverse(), explored: Int32Array.from(order) }
   }
 
-  function aim(cell: number, now: number): void {
-    if (cell === goal || !open[cell]) return
-    goal = cell
-    const { visited, path } = astar(start, cell)
-    previous = current
-    if (previous) previous.startedAt = now - 10_000 // let it fade out
-    current = { visited, path, startedAt: now, colour: colours[colourIndex++ % colours.length] }
-    wake()
+  function plan(s: Snake, from: number, now: number): void {
+    // A goal far enough away that the trip is worth watching.
+    let goal = from
+    for (let tries = 0; tries < 20; tries++) {
+      goal = corridors[Math.floor(Math.random() * corridors.length)]
+      const d = Math.abs(Math.floor(goal / cols) - Math.floor(from / cols)) + Math.abs((goal % cols) - (from % cols))
+      if (d > Math.min(cols, rows) * 0.6) break
+    }
+    const { route, explored } = astar(from, goal)
+    s.route = route.length > 1 ? route : [from]
+    s.explored = explored
+    s.at = 0
+    s.plannedAt = now
+  }
+
+  const centre = (i: number): [number, number] => [(i % cols) * CELL + CELL / 2, Math.floor(i / cols) * CELL + CELL / 2]
+
+  function head(s: Snake): [number, number] {
+    const i = Math.min(Math.floor(s.at), s.route.length - 1)
+    const j = Math.min(i + 1, s.route.length - 1)
+    const t = s.at - i
+    const [ax, ay] = centre(s.route[i])
+    const [bx, by] = centre(s.route[j])
+    return [ax + (bx - ax) * t, ay + (by - ay) * t]
+  }
+
+  // ── simulation ────────────────────────────────────────────────────────
+
+  const THINK = 380 // ms of "thinking" before setting off
+  const FLASH = 1100 // ms the explored cells stay visible
+
+  function step(now: number, dt: number): void {
+    for (const s of snakes) {
+      if (now - s.plannedAt < THINK) continue
+      s.at += (s.speed * dt) / 1000
+      s.trail.push(head(s))
+      if (s.trail.length > TRAIL_POINTS) s.trail.shift()
+      if (s.at >= s.route.length - 1) {
+        const [x, y] = centre(s.route[s.route.length - 1])
+        rings.push({ x, y, colour: s.colour, born: now })
+        plan(s, s.route[s.route.length - 1], now)
+      }
+    }
+    rings = rings.filter((r) => now - r.born < 1400)
   }
 
   // ── drawing ───────────────────────────────────────────────────────────
 
-  const EXPLORE = 520 // ms to reveal the explored cells
-  const TRACE = 420 // ms to draw the route
-  const FADE = 1400 // ms the explored cells stay visible
+  function draw(now: number): void {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  function centre(i: number): [number, number] {
-    return [(i % cols) * CELL + CELL / 2, Math.floor(i / cols) * CELL + CELL / 2]
-  }
-
-  function draw(now: number): boolean {
-    const w = canvas.width
-    const h = canvas.height
-    ctx.clearRect(0, 0, w, h)
-
-    // Walls as faint dots — a map, not a cage.
+    // Walls: faint dots, brighter in the cursor's light.
     ctx.fillStyle = ink
-    ctx.globalAlpha = 0.07
     for (let i = 0; i < open.length; i++) {
       if (open[i]) continue
       const [x, y] = centre(i)
-      ctx.fillRect(x - 2, y - 2, 4, 4)
+      let a = 0.06
+      if (lamp) {
+        const d = Math.hypot(x - lamp[0], y - lamp[1])
+        if (d < LAMP) a += 0.22 * (1 - d / LAMP) ** 2
+      }
+      ctx.globalAlpha = a
+      const size = a > 0.1 ? 5 : 4
+      ctx.fillRect(x - size / 2, y - size / 2, size, size)
     }
 
-    let busy = false
-    for (const s of [previous, current]) {
-      if (!s) continue
-      const t = now - s.startedAt
-      if (s === previous && t > 10_000 + 300) continue
+    for (const s of snakes) {
+      const dim = focus && focus !== s.colour ? 0.25 : 1
+      const bold = focus === s.colour ? 1.8 : 1
 
-      // Explored cells: appear in A*'s order, then fade.
-      const shown = still ? s.visited.length : Math.min(s.visited.length, Math.floor((t / EXPLORE) * s.visited.length))
-      const fade = still ? 0.06 : Math.max(0, 1 - (t - EXPLORE) / FADE)
-      if (fade > 0 && s === current) {
+      // The cells A* looked at while planning — a quick flash, then gone.
+      const t = now - s.plannedAt
+      if (!still && t < FLASH) {
+        const shown = Math.min(s.explored.length, Math.floor((t / THINK) * s.explored.length))
         ctx.fillStyle = s.colour
+        ctx.globalAlpha = 0.12 * (1 - t / FLASH) * dim
         for (let k = 0; k < shown; k++) {
-          const [x, y] = centre(s.visited[k])
-          ctx.globalAlpha = 0.11 * fade
-          ctx.fillRect(x - CELL / 2 + 2, y - CELL / 2 + 2, CELL - 4, CELL - 4)
+          const [x, y] = centre(s.explored[k])
+          ctx.fillRect(x - CELL / 2 + 3, y - CELL / 2 + 3, CELL - 6, CELL - 6)
         }
-        busy = busy || fade > 0
       }
 
-      // The route, traced from the start towards the cursor.
-      const part = still ? 1 : Math.max(0, Math.min(1, (t - EXPLORE * 0.6) / TRACE))
-      const alpha = s === previous ? Math.max(0, 1 - (t - 10_000) / 300) : 1
-      if (part > 0 && s.path.length > 1 && alpha > 0) {
-        const pts = s.path.slice().reverse()
-        const upto = Math.max(1, Math.floor(part * (pts.length - 1)))
-        ctx.globalAlpha = 0.85 * alpha
-        ctx.strokeStyle = s.colour
-        ctx.lineWidth = 3
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
+      // Tail: older points thinner and fainter.
+      const pts = s.trail
+      const keep = Math.min(pts.length, TRAIL_POINTS)
+      ctx.lineCap = 'round'
+      ctx.strokeStyle = s.colour
+      for (let k = pts.length - keep + 1; k < pts.length; k++) {
+        const f = (k - (pts.length - keep)) / keep
+        ctx.globalAlpha = 0.85 * f * dim
+        ctx.lineWidth = (1 + 4 * f) * bold
         ctx.beginPath()
-        for (let k = 0; k <= upto; k++) {
-          const [x, y] = centre(pts[k])
-          if (k === 0) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-        }
+        ctx.moveTo(pts[k - 1][0], pts[k - 1][1])
+        ctx.lineTo(pts[k][0], pts[k][1])
         ctx.stroke()
-        // A small head on the moving end.
-        const [hx, hy] = centre(pts[upto])
-        ctx.beginPath()
-        ctx.arc(hx, hy, 4.5, 0, Math.PI * 2)
-        ctx.fillStyle = s.colour
-        ctx.fill()
-        busy = busy || part < 1 || alpha < 1
       }
+      const [hx, hy] = pts.length ? pts[pts.length - 1] : head(s)
+      ctx.globalAlpha = dim
+      ctx.fillStyle = s.colour
+      ctx.beginPath()
+      ctx.arc(hx, hy, 4.2 * bold, 0, Math.PI * 2)
+      ctx.fill()
     }
 
-    // Start marker.
-    const [sx, sy] = centre(start)
-    ctx.globalAlpha = 0.5
-    ctx.strokeStyle = ink
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(sx, sy, 6, 0, Math.PI * 2)
-    ctx.stroke()
+    // Arrival rings.
+    for (const r of rings) {
+      const t = (now - r.born) / 1400
+      ctx.globalAlpha = 0.55 * (1 - t) * (focus && focus !== r.colour ? 0.25 : 1)
+      ctx.strokeStyle = r.colour
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(r.x, r.y, 4 + 46 * (1 - (1 - t) ** 3), 0, Math.PI * 2)
+      ctx.stroke()
+    }
     ctx.globalAlpha = 1
-    return busy
   }
 
   function frame(now: number): void {
     raf = 0
-    if (!visible) return
-    if (draw(now)) raf = requestAnimationFrame(frame)
+    if (!visible || document.hidden) return
+    const dt = Math.min(64, now - (last || now))
+    last = now
+    step(now, dt)
+    draw(now)
+    raf = requestAnimationFrame(frame)
   }
 
   function wake(): void {
-    if (!raf && visible) raf = requestAnimationFrame(frame)
+    if (still) {
+      draw(performance.now())
+      return
+    }
+    if (!raf && visible && !document.hidden) {
+      last = 0
+      raf = requestAnimationFrame(frame)
+    }
   }
 
   // ── input and lifecycle ───────────────────────────────────────────────
 
   host.addEventListener('pointermove', (e) => {
     const rect = canvas.getBoundingClientRect()
-    lastPointer = performance.now()
-    aim(nearestOpen(Math.floor((e.clientY - rect.top) / CELL), Math.floor((e.clientX - rect.left) / CELL)), lastPointer)
+    lamp = [e.clientX - rect.left, e.clientY - rect.top]
+    if (still) wake()
   })
-
-  // A click moves the start: the next route begins where you clicked.
-  host.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('a')) return
-    const rect = canvas.getBoundingClientRect()
-    start = nearestOpen(Math.floor((e.clientY - rect.top) / CELL), Math.floor((e.clientX - rect.left) / CELL))
-    const target = goal
-    goal = -1
-    if (target >= 0) aim(target, performance.now())
+  host.addEventListener('pointerleave', () => {
+    lamp = null
+    if (still) wake()
   })
-
-  // Without a mouse (or when it rests) the goal wanders on its own.
-  function wander(): void {
-    if (visible && !document.hidden && performance.now() - lastPointer > 4000) {
-      aim(nearestOpen(1 + Math.floor(Math.random() * (rows - 2)), Math.floor(cols * 0.35 + Math.random() * cols * 0.63)), performance.now())
-    }
-  }
 
   new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting
     wake()
   }).observe(host)
+  document.addEventListener('visibilitychange', wake)
 
   let resizeTimer = 0
   new ResizeObserver(() => {
     clearTimeout(resizeTimer)
     resizeTimer = window.setTimeout(() => {
       build()
-      aim(nearestOpen(2, cols - 3), performance.now())
       wake()
     }, 120)
   }).observe(host)
 
   build()
-  aim(nearestOpen(2, cols - 3), performance.now())
-  if (!still) setInterval(wander, 3200)
   wake()
+
+  return {
+    highlight(colour) {
+      focus = colour
+      if (still) wake()
+    },
+  }
 }
