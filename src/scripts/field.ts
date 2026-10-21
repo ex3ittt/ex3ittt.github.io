@@ -286,6 +286,16 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): void {
     aim(nearestOpen(Math.floor((e.clientY - rect.top) / CELL), Math.floor((e.clientX - rect.left) / CELL)), lastPointer)
   })
 
+  // A click moves the start: the next route begins where you clicked.
+  host.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('a')) return
+    const rect = canvas.getBoundingClientRect()
+    start = nearestOpen(Math.floor((e.clientY - rect.top) / CELL), Math.floor((e.clientX - rect.left) / CELL))
+    const target = goal
+    goal = -1
+    if (target >= 0) aim(target, performance.now())
+  })
+
   // Without a mouse (or when it rests) the goal wanders on its own.
   function wander(): void {
     if (visible && !document.hidden && performance.now() - lastPointer > 4000) {

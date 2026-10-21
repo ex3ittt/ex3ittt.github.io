@@ -2,11 +2,9 @@
 import { PROJECTS } from '../data/projects'
 
 const title = 'Артём Мельник — проекты'
-const description = 'Студент первого курса. Приложения, серверы, алгоритмы и один язык программирования — с кодом и тестами.'
+const description = 'Учусь на первом курсе ДГТУ. Здесь мои проекты с открытым кодом.'
 const langs = [...new Set(PROJECTS.flatMap((p) => p.langs))]
 const colours = PROJECTS.map((p) => p.colour)
-// For the typing line in the hero, a nod to the typing-trainer project.
-const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
 ---
 
 <!doctype html>
@@ -24,7 +22,7 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
     <link href="https://fonts.googleapis.com/css2?family=Geologica:wght,SHRP@300..800,0..100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2324262b'/%3E%3Cpath d='M3 12V8h5V4h5' stroke='%23b0247f' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
   </head>
-  <body>
+  <body style={`--spectrum: ${colours.join(', ')}`}>
     <header class="hero" id="hero">
       <canvas class="field" id="field" aria-hidden="true" data-colours={JSON.stringify(colours)}></canvas>
       <div class="hero-inner">
@@ -33,17 +31,13 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
           <span class="line">{[...'Мельник'].map((ch, i) => <span class="ch" style={`--i: ${i + 5}`}>{ch}</span>)}</span>
         </h1>
         <div class="intro">
-          <p class="typing" aria-label={`Пишу на ${typed.join(', ')}`}>
-            <span aria-hidden="true">Пишу на&nbsp;</span><span class="typed" id="typed" aria-hidden="true" data-words={JSON.stringify(typed)}>TypeScript</span><span class="caret" aria-hidden="true"></span>
-          </p>
           <p>
-            Студент первого курса, факультет информатики и вычислительной техники ДГТУ, Ростов-на-Дону.
-            Мне интересно, как вещи устроены внутри — поэтому тут свой язык программирования,
-            свой поиск по документам и свой расчёт долгов, а не обёртки над чужими библиотеками.
+            Учусь на первом курсе ДГТУ, факультет информатики и вычислительной техники, Ростов-на-Дону.
+            Делаю приложения и сервисы, чаще всего для себя и одногруппников.
           </p>
+          <p>Ниже то, что можно открыть, запустить и почитать в коде.</p>
           <p class="links"><a href="https://github.com/ex3ittt">GitHub</a></p>
         </div>
-        <p class="field-note" aria-hidden="true">За текстом — A* из «Поиска пути»: веди мышкой, он ищет дорогу к курсору.</p>
       </div>
     </header>
 
@@ -58,16 +52,15 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
     <section class="main-project" aria-labelledby="campus">
       <h2 id="campus">Цифровой кампус</h2>
       <p>
-        Мой основной проект — iOS-приложение для студентов: настоящее расписание вуза, свободные аудитории
-        в реальном времени, напоминания о мероприятиях и помощник на локальной языковой модели, который
-        отвечает по открытым данным университета. Flutter и Dart, сервер помощника на FastAPI.
-        Код пока закрыт: проект готовится к гранту.
+        Мой главный проект, приложение для студентов на iPhone. В нём расписание, свободные аудитории,
+        мероприятия с напоминаниями и помощник, который отвечает на вопросы про университет.
+        Код пока закрыт, с этим проектом я подаюсь на грант.
       </p>
     </section>
 
     <main>
       <div class="index-head">
-        <h2>Проекты с открытым кодом</h2>
+        <h2>Проекты</h2>
         <div class="filter" role="group" aria-label="Фильтр по языку">
           <button aria-pressed="true" data-lang="">Все</button>
           {langs.map((l) => <button aria-pressed="false" data-lang={l}>{l}</button>)}
@@ -99,7 +92,8 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
     </main>
 
     <footer class="foot">
-      <p>У каждого проекта есть README с объяснением, как он устроен, тесты и проверка в GitHub Actions. Сайт собран на Astro.</p>
+      <p class="foot-lead">Весь код здесь</p>
+      <a class="foot-link" href="https://github.com/ex3ittt">github.com/ex3ittt</a>
     </footer>
 
     <script>
@@ -110,37 +104,21 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
 
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
-      // "Пишу на …": types a word, waits, erases it, types the next.
-      const typed = document.getElementById('typed')!
-      const words: string[] = JSON.parse(typed.dataset.words ?? '[]')
-      if (!still && words.length) {
-        let w = 0
-        let shown = words[0].length
-        let erasing = false
-        let pause = 1800
-        const step = () => {
-          if (pause > 0) {
-            const wait = pause
-            pause = 0
-            return setTimeout(step, wait)
-          }
-          if (erasing) {
-            shown--
-            if (shown === 0) {
-              erasing = false
-              w = (w + 1) % words.length
-            }
-          } else {
-            shown++
-            if (shown === words[w].length) {
-              erasing = true
-              pause = 1800
-            }
-          }
-          typed.textContent = words[w].slice(0, shown) || '​'
-          setTimeout(step, erasing ? 45 : 85 + Math.random() * 70)
+      // Pictures lean a little towards the pointer — only on devices with a mouse.
+      if (!still && matchMedia('(hover: hover)').matches) {
+        for (const mat of document.querySelectorAll<HTMLElement>('.mat')) {
+          mat.addEventListener('pointermove', (e) => {
+            const r = mat.getBoundingClientRect()
+            const x = (e.clientX - r.left) / r.width - 0.5
+            const y = (e.clientY - r.top) / r.height - 0.5
+            mat.style.setProperty('--rx', `${(-y * 5).toFixed(2)}deg`)
+            mat.style.setProperty('--ry', `${(x * 7).toFixed(2)}deg`)
+          })
+          mat.addEventListener('pointerleave', () => {
+            mat.style.setProperty('--rx', '0deg')
+            mat.style.setProperty('--ry', '0deg')
+          })
         }
-        setTimeout(step, 2400)
       }
 
       // Filter by language.
@@ -202,12 +180,7 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
 
   .intro { max-width: 50ch; }
   .intro p { margin: 0 0 14px; }
-  .typing { font: 500 19px 'JetBrains Mono', monospace; color: var(--ink); white-space: nowrap; }
-  .typed { color: var(--link); }
-  .caret { display: inline-block; width: 0.6ch; height: 1.15em; vertical-align: -0.2em; background: var(--link); margin-left: 2px; animation: blink 1.05s steps(1) infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-  .links { display: flex; gap: 20px; font-weight: 500; }
-  .field-note { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+    .links { display: flex; gap: 20px; font-weight: 500; }
 
   /* ── spectrum: every project as a band of its colour ──────────────── */
 
@@ -265,8 +238,21 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
   .stack { margin: 0 0 18px; font-size: 15px; color: var(--muted); }
   .actions { margin: 0; display: flex; gap: 22px; font-weight: 500; }
 
+  /* Every other project mirrors, so the page has a rhythm instead of a column. */
+  .project:nth-child(even) { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .project:nth-child(even) .mat { order: -1; }
+
   /* Each picture sits on a mat in its project's own colour. */
-  .mat { margin: 0; padding: clamp(14px, 2.6vw, 30px); background: var(--own); border-radius: 4px; }
+  .mat {
+    --rx: 0deg;
+    --ry: 0deg;
+    margin: 0;
+    padding: clamp(14px, 2.6vw, 30px);
+    background: var(--own);
+    border-radius: 4px;
+    transform: perspective(1200px) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
   .mat img { display: block; width: 100%; height: auto; border-radius: 2px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 18px 40px -18px rgb(0 0 0 / 0.45); }
   .terminal {
     margin: 0;
@@ -290,24 +276,41 @@ const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
     @keyframes grow { from { scale: 0 1; } to { scale: 1 1; } }
   }
 
-  .foot { padding-top: 44px; padding-bottom: 72px; color: var(--muted); font-size: 15px; }
+  .foot { padding-top: 96px; padding-bottom: 96px; }
+  .foot-lead { margin: 0 0 6px; color: var(--muted); }
+  .foot-link {
+    font-size: clamp(34px, 7vw, 96px);
+    font-weight: 740;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--ink);
+    text-decoration: none;
+    font-variation-settings: 'SHRP' 100;
+    background: linear-gradient(90deg, var(--spectrum)) left bottom / 0% 8px no-repeat;
+    transition: background-size 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    padding-bottom: 10px;
+    overflow-wrap: anywhere;
+  }
+  .foot-link:hover, .foot-link:focus-visible { background-size: 100% 8px; }
 
   @media (max-width: 860px) {
     .hero-inner, .main-project, main, .foot { padding: 0 18px; }
     .hero { min-height: 0; }
     .hero-inner { grid-template-columns: 1fr; padding-top: 96px; padding-bottom: 32px; }
-    .field-note { display: none; }
     .spectrum { height: 40px; }
     .spectrum a span { display: none; }
     .main-project { grid-template-columns: 1fr; padding-top: 36px; padding-bottom: 36px; }
-    .project { grid-template-columns: 1fr; gap: 22px; padding: 36px 0; }
+    .project, .project:nth-child(even) { grid-template-columns: 1fr; gap: 22px; padding: 36px 0; }
+    .foot { padding-top: 56px; padding-bottom: 64px; }
     .mat { order: -1; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    h1 .ch, .spectrum a, .caret { animation: none; }
+    h1 .ch, .spectrum a { animation: none; }
     .spectrum a, .spectrum a span { transition: none; }
     .mat > *, .project h3::before { animation: none !important; }
+    .mat { transition: none; transform: none; }
+    .foot-link { transition: none; }
   }
 </style>
