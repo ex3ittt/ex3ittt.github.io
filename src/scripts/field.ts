@@ -54,6 +54,15 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
   let visible = true
   let raf = 0
   let last = 0
+  let cssW = 0
+  let cssH = 0
+  const wokeAt = performance.now()
+
+  // A second, offscreen canvas the snakes paint on. It fades very slowly,
+  // so over a minute or two their routes weave into a picture.
+  const paint = document.createElement('canvas')
+  const pctx = paint.getContext('2d')!
+  let paintFrames = 0
 
   // Deterministic randomness for the maze, ordinary randomness for the snakes.
   let seed = 20261021
@@ -70,6 +79,11 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
     canvas.style.width = `${w}px`
     canvas.style.height = `${h}px`
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    paint.width = canvas.width
+    paint.height = canvas.height
+    pctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    cssW = w
+    cssH = h
     ink = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || ink
 
     cols = Math.max(9, Math.floor(w / CELL) | 1)
@@ -225,7 +239,19 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
     for (const s of snakes) {
       if (now - s.plannedAt < THINK) continue
       s.at += (s.speed * dt) / 1000
-      s.trail.push(head(s))
+      const before = s.trail[s.trail.length - 1]
+      const headNow = head(s)
+      s.trail.push(headNow)
+      if (before) {
+        pctx.globalAlpha = 0.09
+        pctx.strokeStyle = s.colour
+        pctx.lineWidth = 9
+        pctx.lineCap = 'round'
+        pctx.beginPath()
+        pctx.moveTo(before[0], before[1])
+        pctx.lineTo(headNow[0], headNow[1])
+        pctx.stroke()
+      }
       if (s.trail.length > TRAIL_POINTS) s.trail.shift()
       if (s.at >= s.route.length - 1) {
         const [x, y] = centre(s.route[s.route.length - 1])
@@ -234,24 +260,42 @@ export function startField(canvas: HTMLCanvasElement, colours: string[]): Field 
       }
     }
     rings = rings.filter((r) => now - r.born < 1400)
+
+    // Fade the painting a notch about once a second.
+    if (++paintFrames % 60 === 0) {
+      pctx.save()
+      pctx.setTransform(1, 0, 0, 1, 0, 0)
+      pctx.globalCompositeOperation = 'destination-out'
+      pctx.globalAlpha = 0.1
+      pctx.fillRect(0, 0, paint.width, paint.height)
+      pctx.restore()
+    }
   }
 
   // ── drawing ───────────────────────────────────────────────────────────
 
   function draw(now: number): void {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.globalAlpha = 1
+    ctx.drawImage(paint, 0, 0, cssW, cssH)
 
-    // Walls: faint dots, brighter in the cursor's light.
+    // Walls: faint dots, brighter in the cursor's light. On first load they
+    // wake up in a wave spreading from the middle of the header.
+    const woke = still ? Infinity : now - wokeAt
+    const cx = cssW * 0.5
+    const cy = cssH * 0.55
     ctx.fillStyle = ink
     for (let i = 0; i < open.length; i++) {
       if (open[i]) continue
       const [x, y] = centre(i)
-      let a = 0.06
+      const wave = woke > 2600 ? 1 : Math.max(0, Math.min(1, (woke - Math.hypot(x - cx, y - cy) * 1.1) / 320))
+      if (wave === 0) continue
+      let a = 0.06 + 0.3 * (wave < 1 ? Math.sin(wave * Math.PI) : 0)
       if (lamp) {
         const d = Math.hypot(x - lamp[0], y - lamp[1])
         if (d < LAMP) a += 0.22 * (1 - d / LAMP) ** 2
       }
-      ctx.globalAlpha = a
+      ctx.globalAlpha = a * wave
       const size = a > 0.1 ? 5 : 4
       ctx.fillRect(x - size / 2, y - size / 2, size, size)
     }

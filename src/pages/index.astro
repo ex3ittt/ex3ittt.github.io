@@ -188,6 +188,8 @@ const colours = PROJECTS.map((p) => p.colour)
   }
 
   .intro { max-width: 50ch; }
+  /* A soft halo of paper around the text keeps it readable over the painting. */
+  .intro p, .main-project p { text-shadow: 0 0 3px var(--paper), 0 0 8px var(--paper), 0 0 14px var(--paper); }
   .intro p { margin: 0 0 14px; }
     .links { display: flex; gap: 20px; font-weight: 500; }
 
@@ -277,9 +279,18 @@ const colours = PROJECTS.map((p) => p.colour)
     box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.5);
   }
 
-  /* Pictures drift up into place as they scroll in — where supported. */
+  /* Scroll-linked motion where the browser supports it: the maze lags
+     behind the page, and each mat opens like a curtain from the text side. */
+  @supports (animation-timeline: scroll()) {
+    .field { animation: drift linear both; animation-timeline: scroll(root); animation-range: 0 100vh; }
+    @keyframes drift { to { translate: 0 30vh; opacity: 0.4; } }
+  }
   @supports (animation-timeline: view()) {
-    .mat > * { animation: settle linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+    .mat { animation: curtain-l linear both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+    .project:nth-child(even) .mat { animation-name: curtain-r; }
+    @keyframes curtain-r { from { clip-path: inset(0 0 0 100% round 4px); } to { clip-path: inset(0 0 0 0 round 4px); } }
+    @keyframes curtain-l { from { clip-path: inset(0 100% 0 0 round 4px); } to { clip-path: inset(0 0 0 0 round 4px); } }
+    .mat > * { animation: settle linear both; animation-timeline: view(); animation-range: entry 10% cover 45%; }
     .project h3::before { animation: grow linear both; animation-timeline: view(); animation-range: entry 10% cover 30%; transform-origin: left; }
     @keyframes settle { from { translate: 0 60px; scale: 0.94; opacity: 0.2; } to { translate: 0 0; scale: 1; opacity: 1; } }
     @keyframes grow { from { scale: 0 1; } to { scale: 1 1; } }
@@ -318,7 +329,7 @@ const colours = PROJECTS.map((p) => p.colour)
     html { scroll-behavior: auto; }
     h1 .ch, .spectrum a { animation: none; }
     .spectrum a, .spectrum a span { transition: none; }
-    .mat > *, .project h3::before { animation: none !important; }
+    .mat > *, .project h3::before, .mat, .field { animation: none !important; }
     .mat { transition: none; transform: none; }
     .foot-link { transition: none; }
   }
