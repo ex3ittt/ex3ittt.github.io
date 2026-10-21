@@ -7,6 +7,10 @@ export interface Project {
   what: string
   detail: string
   stack: string
+  /** Languages for the filter. */
+  langs: string[]
+  /** Anchor on the page. */
+  slug: string
   /** The project's own main colour — a strip next to its picture. */
   colour: string
   shot?: { src: string; alt: string }
@@ -16,6 +20,8 @@ export interface Project {
 export const PROJECTS: Project[] = [
   {
     name: 'Чат с PDF',
+    slug: 'pdf-chat',
+    langs: ['Python'],
     repo: `${GH}/offline-pdf-chat`,
     what: 'Вопросы к своим PDF без интернета — модель работает на компьютере.',
     detail: 'Гибридный поиск (векторы + BM25), ответы со ссылками на страницы, маркером выделены те предложения, откуда взят ответ.',
@@ -25,6 +31,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Кроха',
+    slug: 'kroha',
+    langs: ['TypeScript'],
     repo: `${GH}/kroha-lang`,
     demo: 'https://ex3ittt.github.io/kroha-lang/',
     what: 'Маленький язык программирования с русскими словами и песочница в браузере.',
@@ -35,6 +43,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Короткие ссылки',
+    slug: 'links',
+    langs: ['Python'],
     repo: `${GH}/link-shortener`,
     what: 'Сервис коротких ссылок со статистикой переходов.',
     detail: 'Redis на горячем пути, клики пишутся после ответа, превью мессенджеров не считаются людьми. Тесты на SQLite и на настоящих PostgreSQL и Redis в CI.',
@@ -44,6 +54,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Комната для группы',
+    slug: 'chat',
+    langs: ['TypeScript'],
     repo: `${GH}/study-chat`,
     what: 'Чат в реальном времени для учебной группы, комната по ссылке.',
     detail: 'Очередь отправки на случай обрыва связи, переподключение с паузой, дедупликация по clientId. Переписка свёрстана как текст пьесы.',
@@ -53,6 +65,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Поиск пути',
+    slug: 'pathfinding',
+    langs: ['TypeScript'],
     repo: `${GH}/pathfinding-visualizer`,
     demo: 'https://ex3ittt.github.io/pathfinding-visualizer/',
     what: 'A*, Дейкстра, поиск в ширину и глубину — пошагово на карте ориентирования.',
@@ -63,6 +77,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Кто кому должен',
+    slug: 'trip-split',
+    langs: ['TypeScript'],
     repo: `${GH}/trip-split`,
     demo: 'https://ex3ittt.github.io/trip-split/',
     what: 'Делит общие траты в поездке и считает переводы.',
@@ -73,6 +89,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Лента',
+    slug: 'typing',
+    langs: ['TypeScript'],
     repo: `${GH}/typing-tape`,
     demo: 'https://ex3ittt.github.io/typing-tape/',
     what: 'Тренажёр слепой печати на русской раскладке.',
@@ -83,6 +101,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'Тихий час',
+    slug: 'quiet-hour',
+    langs: ['JavaScript'],
     repo: `${GH}/quiet-hour`,
     what: 'Расширение Chrome: таймер фокуса, отвлекающие сайты закрыты.',
     detail: 'declarativeNetRequest вместо перехвата запросов, будильники вместо таймеров — service worker в Manifest V3 может уснуть в любой момент.',
@@ -92,6 +112,8 @@ export const PROJECTS: Project[] = [
   },
   {
     name: 'deadlink',
+    slug: 'deadlink',
+    langs: ['Go'],
     repo: `${GH}/deadlink`,
     what: 'Находит битые ссылки на сайте и группирует их по страницам.',
     detail: 'Параллельный обход с семафором, ограничение частоты на хост, robots.txt, HEAD с откатом на GET. Код выхода 1 — для CI.',
@@ -110,6 +132,8 @@ http://localhost:8090/schedule.html
   },
   {
     name: 'Бот дедлайнов',
+    slug: 'deadline-bot',
+    langs: ['Python'],
     repo: `${GH}/deadline-bot`,
     what: 'Телеграм-бот: пишешь дедлайн обычными словами — он напоминает заранее.',
     detail: '«лаба до 25.10 18:00», «курсач через 2 недели», «в пятницу к 9 утра». Напоминания переживают перезапуск, пропущенные схлопываются в одно.',

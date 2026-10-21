@@ -3,6 +3,10 @@ import { PROJECTS } from '../data/projects'
 
 const title = 'Артём Мельник — проекты'
 const description = 'Студент первого курса. Приложения, серверы, алгоритмы и один язык программирования — с кодом и тестами.'
+const langs = [...new Set(PROJECTS.flatMap((p) => p.langs))]
+const colours = PROJECTS.map((p) => p.colour)
+// For the typing line in the hero, a nod to the typing-trainer project.
+const typed = ['TypeScript', 'Python', 'Go', 'Dart', 'SQL']
 ---
 
 <!doctype html>
@@ -14,25 +18,42 @@ const description = 'Студент первого курса. Приложен�
     <meta name="description" content={description} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://ex3ittt.github.io/shots/kroha.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght,SHRP@300..800,0..100&display=swap" rel="stylesheet" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2324262b'/%3E%3Ctext x='3' y='12.5' font-size='11' font-family='sans-serif' font-weight='700' fill='white'%3EА%3C/text%3E%3C/svg%3E" />
+    <link href="https://fonts.googleapis.com/css2?family=Geologica:wght,SHRP@300..800,0..100&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2324262b'/%3E%3Cpath d='M3 12V8h5V4h5' stroke='%23b0247f' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <header class="hero">
-      <h1>Артём<br />Мельник</h1>
-      <div class="intro">
-        <p>
-          Студент первого курса, факультет информатики и вычислительной техники ДГТУ, Ростов-на-Дону.
-          Мне интересно, как вещи устроены внутри — поэтому тут свой язык программирования,
-          свой поиск по документам и свой расчёт долгов, а не обёртки над чужими библиотеками.
-        </p>
-        <p class="links">
-          <a href="https://github.com/ex3ittt">GitHub</a>
-        </p>
+    <header class="hero" id="hero">
+      <canvas class="field" id="field" aria-hidden="true" data-colours={JSON.stringify(colours)}></canvas>
+      <div class="hero-inner">
+        <h1 aria-label="Артём Мельник">
+          <span class="line">{[...'Артём'].map((ch, i) => <span class="ch" style={`--i: ${i}`}>{ch}</span>)}</span>
+          <span class="line">{[...'Мельник'].map((ch, i) => <span class="ch" style={`--i: ${i + 5}`}>{ch}</span>)}</span>
+        </h1>
+        <div class="intro">
+          <p class="typing" aria-label={`Пишу на ${typed.join(', ')}`}>
+            <span aria-hidden="true">Пишу на&nbsp;</span><span class="typed" id="typed" aria-hidden="true" data-words={JSON.stringify(typed)}>TypeScript</span><span class="caret" aria-hidden="true"></span>
+          </p>
+          <p>
+            Студент первого курса, факультет информатики и вычислительной техники ДГТУ, Ростов-на-Дону.
+            Мне интересно, как вещи устроены внутри — поэтому тут свой язык программирования,
+            свой поиск по документам и свой расчёт долгов, а не обёртки над чужими библиотеками.
+          </p>
+          <p class="links"><a href="https://github.com/ex3ittt">GitHub</a></p>
+        </div>
+        <p class="field-note" aria-hidden="true">За текстом — A* из «Поиска пути»: веди мышкой, он ищет дорогу к курсору.</p>
       </div>
     </header>
+
+    <nav class="spectrum" aria-label="Проекты">
+      {PROJECTS.map((p, i) => (
+        <a href={`#${p.slug}`} style={`--own: ${p.colour}; --i: ${i}`}>
+          <span>{p.name}</span>
+        </a>
+      ))}
+    </nav>
 
     <section class="main-project" aria-labelledby="campus">
       <h2 id="campus">Цифровой кампус</h2>
@@ -45,10 +66,16 @@ const description = 'Студент первого курса. Приложен�
     </section>
 
     <main>
-      <h2 class="index-title">Проекты с открытым кодом</h2>
+      <div class="index-head">
+        <h2>Проекты с открытым кодом</h2>
+        <div class="filter" role="group" aria-label="Фильтр по языку">
+          <button aria-pressed="true" data-lang="">Все</button>
+          {langs.map((l) => <button aria-pressed="false" data-lang={l}>{l}</button>)}
+        </div>
+      </div>
       <ol class="projects">
         {PROJECTS.map((p) => (
-          <li class="project" style={`--own: ${p.colour}`}>
+          <li class="project" id={p.slug} style={`--own: ${p.colour}`} data-langs={p.langs.join(' ')}>
             <div class="text">
               <h3>{p.name}</h3>
               <p class="what">{p.what}</p>
@@ -59,7 +86,7 @@ const description = 'Студент первого курса. Приложен�
                 {p.repo && <a href={p.repo}>Код на GitHub</a>}
               </p>
             </div>
-            <figure class="picture">
+            <figure class="mat">
               {p.shot ? (
                 <img src={p.shot.src} alt={p.shot.alt} loading="lazy" decoding="async" width="800" height="500" />
               ) : (
@@ -72,80 +99,215 @@ const description = 'Студент первого курса. Приложен�
     </main>
 
     <footer class="foot">
-      <p>У каждого проекта есть README с объяснением, как он устроен, тесты и проверка в GitHub Actions.</p>
+      <p>У каждого проекта есть README с объяснением, как он устроен, тесты и проверка в GitHub Actions. Сайт собран на Astro.</p>
     </footer>
+
+    <script>
+      import { startField } from '../scripts/field'
+
+      const canvas = document.getElementById('field') as HTMLCanvasElement
+      startField(canvas, JSON.parse(canvas.dataset.colours ?? '[]'))
+
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      // "Пишу на …": types a word, waits, erases it, types the next.
+      const typed = document.getElementById('typed')!
+      const words: string[] = JSON.parse(typed.dataset.words ?? '[]')
+      if (!still && words.length) {
+        let w = 0
+        let shown = words[0].length
+        let erasing = false
+        let pause = 1800
+        const step = () => {
+          if (pause > 0) {
+            const wait = pause
+            pause = 0
+            return setTimeout(step, wait)
+          }
+          if (erasing) {
+            shown--
+            if (shown === 0) {
+              erasing = false
+              w = (w + 1) % words.length
+            }
+          } else {
+            shown++
+            if (shown === words[w].length) {
+              erasing = true
+              pause = 1800
+            }
+          }
+          typed.textContent = words[w].slice(0, shown) || '​'
+          setTimeout(step, erasing ? 45 : 85 + Math.random() * 70)
+        }
+        setTimeout(step, 2400)
+      }
+
+      // Filter by language.
+      const buttons = [...document.querySelectorAll<HTMLButtonElement>('.filter button')]
+      const items = [...document.querySelectorAll<HTMLElement>('.project')]
+      for (const b of buttons) {
+        b.addEventListener('click', () => {
+          const lang = b.dataset.lang ?? ''
+          buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+          for (const item of items) item.hidden = Boolean(lang) && !(item.dataset.langs ?? '').split(' ').includes(lang)
+        })
+      }
+    </script>
   </body>
 </html>
 
 <style is:global>
-  /* White page, graphite type, one green for links. Each project brings its
-     own colour as a strip beside its picture — the projects are the colour. */
   :root {
     --paper: #ffffff;
     --ink: #24262b;
     --muted: #686c74;
-    --rule: #e5e6e9;
+    --rule: #e6e7ea;
     --link: #0f7a61;
     color-scheme: light;
   }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #131418; --ink: #eceef2; --muted: #9a9ea8; --rule: #272930; --link: #5fd0b0; color-scheme: dark; }
+  }
 
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 'Geologica', system-ui, sans-serif; font-weight: 350; }
   a { color: var(--link); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
   a:hover { text-decoration-thickness: 3px; }
-  a:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 2px; }
+  :focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 2px; }
+  [hidden] { display: none !important; }
 
-  .hero, .main-project, main, .foot { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  .hero-inner, .main-project, main, .foot { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
 
-  .hero { padding-top: 72px; padding-bottom: 56px; display: grid; grid-template-columns: auto 1fr; gap: 24px 64px; align-items: end; border-bottom: 1px solid var(--rule); }
-  h1 {
-    margin: 0;
-    font-size: clamp(56px, 9.5vw, 132px);
-    line-height: 0.88;
-    font-weight: 750;
-    letter-spacing: -0.045em;
-    /* Sharp corners on the name only — the rest of the page stays soft. */
-    font-variation-settings: 'SHRP' 100;
+  /* ── hero ─────────────────────────────────────────────────────────── */
+
+  .hero { position: relative; overflow: hidden; min-height: min(88vh, 760px); display: grid; align-items: end; cursor: crosshair; }
+  .field {
+    position: absolute;
+    inset: 0;
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+    mask-image: linear-gradient(180deg, #000 70%, transparent);
   }
-  .intro { max-width: 52ch; }
-  .intro p { margin: 0 0 14px; }
-  .links { display: flex; gap: 20px; font-weight: 500; }
+  .hero-inner { position: relative; width: 100%; padding-top: 120px; padding-bottom: 48px; display: grid; grid-template-columns: auto 1fr; gap: 28px 64px; align-items: end; pointer-events: none; }
+  .hero-inner a { pointer-events: auto; }
 
-  .main-project { padding-top: 44px; padding-bottom: 44px; display: grid; grid-template-columns: 16rem 1fr; gap: 12px 40px; border-bottom: 1px solid var(--rule); }
-  .main-project h2 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.15; }
+  h1 { margin: 0; font-size: clamp(58px, 10.5vw, 148px); line-height: 0.88; font-weight: 760; letter-spacing: -0.045em; font-variation-settings: 'SHRP' 100; }
+  h1 .line { display: block; }
+  h1 .ch { display: inline-block; animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i) * 45ms + 80ms); }
+  @keyframes rise {
+    from { opacity: 0; translate: 0 0.35em; font-variation-settings: 'SHRP' 0; }
+    to { opacity: 1; translate: 0 0; font-variation-settings: 'SHRP' 100; }
+  }
+
+  .intro { max-width: 50ch; }
+  .intro p { margin: 0 0 14px; }
+  .typing { font: 500 19px 'JetBrains Mono', monospace; color: var(--ink); white-space: nowrap; }
+  .typed { color: var(--link); }
+  .caret { display: inline-block; width: 0.6ch; height: 1.15em; vertical-align: -0.2em; background: var(--link); margin-left: 2px; animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .links { display: flex; gap: 20px; font-weight: 500; }
+  .field-note { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+
+  /* ── spectrum: every project as a band of its colour ──────────────── */
+
+  .spectrum { display: flex; height: 64px; }
+  .spectrum a {
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--own);
+    position: relative;
+    text-decoration: none;
+    transition: flex-grow 380ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: band 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-delay: calc(500ms + var(--i) * 55ms);
+    transform-origin: bottom;
+  }
+  @keyframes band { from { scale: 1 0; } to { scale: 1 1; } }
+  .spectrum a span {
+    position: absolute;
+    left: 14px;
+    bottom: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    /* Readable on light and dark project colours alike. */
+    color: #fff;
+    mix-blend-mode: difference;
+    opacity: 0;
+    translate: 0 6px;
+    transition: opacity 220ms, translate 220ms;
+  }
+  .spectrum a:hover, .spectrum a:focus-visible { flex-grow: 4; outline-offset: -3px; }
+  .spectrum a:hover span, .spectrum a:focus-visible span { opacity: 1; translate: 0 0; }
+
+  /* ── main project ─────────────────────────────────────────────────── */
+
+  .main-project { padding-top: 56px; padding-bottom: 52px; display: grid; grid-template-columns: 16rem 1fr; gap: 12px 40px; border-bottom: 1px solid var(--rule); }
+  .main-project h2 { margin: 0; font-size: 28px; font-weight: 680; letter-spacing: -0.02em; line-height: 1.15; }
   .main-project p { margin: 0; max-width: 64ch; }
 
-  .index-title { margin: 56px 0 8px; font-size: 18px; font-weight: 500; color: var(--muted); }
+  /* ── projects ─────────────────────────────────────────────────────── */
+
+  .index-head { display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; flex-wrap: wrap; margin: 60px 0 4px; }
+  .index-head h2 { margin: 0; font-size: 18px; font-weight: 500; color: var(--muted); }
+  .filter { display: flex; gap: 4px; flex-wrap: wrap; }
+  .filter button { font: 500 14px 'Geologica', sans-serif; color: var(--muted); background: none; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; min-height: 36px; cursor: pointer; }
+  .filter button:hover { color: var(--ink); border-color: var(--muted); }
+  .filter button[aria-pressed='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
   .projects { list-style: none; margin: 0; padding: 0; }
-  .project { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 32px 56px; padding: 44px 0; border-bottom: 1px solid var(--rule); align-items: start; }
-  .project h3 { margin: 0 0 8px; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.05; font-weight: 700; letter-spacing: -0.03em; }
+  .project { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px 64px; padding: 56px 0; border-bottom: 1px solid var(--rule); align-items: center; scroll-margin-top: 24px; }
+  .project h3 { margin: 0 0 10px; font-size: clamp(30px, 3.6vw, 44px); line-height: 1.03; font-weight: 720; letter-spacing: -0.035em; }
+  .project h3::before { content: ''; display: block; width: 28px; height: 6px; background: var(--own); margin-bottom: 16px; border-radius: 1px; }
   .what { margin: 0 0 12px; font-size: 19px; font-weight: 450; }
   .detail { margin: 0 0 14px; color: var(--muted); max-width: 50ch; }
-  .stack { margin: 0 0 16px; font-size: 15px; color: var(--muted); }
+  .stack { margin: 0 0 18px; font-size: 15px; color: var(--muted); }
   .actions { margin: 0; display: flex; gap: 22px; font-weight: 500; }
 
-  .picture { margin: 0; position: relative; padding-left: 10px; }
-  .picture::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--own); }
-  .picture img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+  /* Each picture sits on a mat in its project's own colour. */
+  .mat { margin: 0; padding: clamp(14px, 2.6vw, 30px); background: var(--own); border-radius: 4px; }
+  .mat img { display: block; width: 100%; height: auto; border-radius: 2px; box-shadow: 0 1px 2px rgb(0 0 0 / 0.18), 0 18px 40px -18px rgb(0 0 0 / 0.45); }
   .terminal {
     margin: 0;
     padding: 20px 22px;
-    background: #1d2026;
+    background: #1b1e24;
     color: #dfe3ea;
-    font: 13.5px/1.6 ui-monospace, 'SF Mono', Menlo, monospace;
+    border-radius: 2px;
+    font: 13px/1.6 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-ligatures: none;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    min-height: 200px;
+    min-height: 220px;
+    box-shadow: 0 18px 40px -18px rgb(0 0 0 / 0.5);
   }
 
-  .foot { padding-top: 40px; padding-bottom: 64px; color: var(--muted); font-size: 15px; }
+  /* Pictures drift up into place as they scroll in — where supported. */
+  @supports (animation-timeline: view()) {
+    .mat > * { animation: settle linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+    .project h3::before { animation: grow linear both; animation-timeline: view(); animation-range: entry 10% cover 30%; transform-origin: left; }
+    @keyframes settle { from { translate: 0 60px; scale: 0.94; opacity: 0.2; } to { translate: 0 0; scale: 1; opacity: 1; } }
+    @keyframes grow { from { scale: 0 1; } to { scale: 1 1; } }
+  }
+
+  .foot { padding-top: 44px; padding-bottom: 72px; color: var(--muted); font-size: 15px; }
 
   @media (max-width: 860px) {
-    .hero, .main-project, main, .foot { padding: 0 18px; }
-    .hero { grid-template-columns: 1fr; padding-top: 44px; padding-bottom: 36px; }
-    .main-project { grid-template-columns: 1fr; padding-top: 32px; padding-bottom: 32px; }
-    .project { grid-template-columns: 1fr; gap: 20px; padding: 32px 0; }
-    .picture { order: -1; }
+    .hero-inner, .main-project, main, .foot { padding: 0 18px; }
+    .hero { min-height: 0; }
+    .hero-inner { grid-template-columns: 1fr; padding-top: 96px; padding-bottom: 32px; }
+    .field-note { display: none; }
+    .spectrum { height: 40px; }
+    .spectrum a span { display: none; }
+    .main-project { grid-template-columns: 1fr; padding-top: 36px; padding-bottom: 36px; }
+    .project { grid-template-columns: 1fr; gap: 22px; padding: 36px 0; }
+    .mat { order: -1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    h1 .ch, .spectrum a, .caret { animation: none; }
+    .spectrum a, .spectrum a span { transition: none; }
+    .mat > *, .project h3::before { animation: none !important; }
   }
 </style>
