@@ -19,6 +19,18 @@ export interface Project {
 
 export const PROJECTS: Project[] = [
   {
+    name: 'До стипендии',
+    slug: 'do-stipendii',
+    langs: ['Dart'],
+    repo: `${GH}/do-stipendii`,
+    demo: 'https://ex3ittt.github.io/do-stipendii/',
+    what: 'Приложение для iPhone: сколько можно потратить сегодня, чтобы деньги дожили до стипендии.',
+    detail: 'Делит деньги по дням и пересчитывает лимит после каждой траты. Лента дней показывает, где уложился, а где был перерасход.',
+    stack: 'Flutter, Dart',
+    colour: '#1f6f64',
+    shot: { src: '/shots/do-stipendii.jpg', alt: 'Три экрана приложения: первый запуск, лимит на сегодня с лентой дней и ввод траты' },
+  },
+  {
     name: 'Чат с PDF',
     slug: 'pdf-chat',
     langs: ['Python'],
